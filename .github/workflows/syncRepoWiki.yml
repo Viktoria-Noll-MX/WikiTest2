@@ -1,0 +1,64 @@
+name: Update Wiki
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # Allows manual triggering of the workflow
+
+jobs:
+  update-wiki:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main repository
+        uses: actions/checkout@v4
+
+      - name: Set up environment variables
+        run: |
+          echo "WIKI_REPOSITORY_URL=https://github-actions:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.wiki.git" >> $GITHUB_ENV
+          echo "CODE_REPOSITORY_URL=https://github-actions:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" >> $GITHUB_ENV
+          echo "BRANCH=main" >> $GITHUB_ENV  # Set the branch variable
+
+      - name: Clone wiki
+        run: |
+          git clone $WIKI_REPOSITORY_URL wiki
+          echo "Cloned wiki repository to 'wiki' directory."
+
+      - name: Verify wiki content
+        run: |
+          echo "Listing contents of the wiki directory:"
+          ls -la wiki
+          if [ -z "$(ls -A wiki)" ]; then
+            echo "Wiki directory is empty. Cloning may have failed."
+            exit 1
+          else
+            echo "Wiki directory contains files."
+          fi
+
+      - name: Copy wiki content to subfolder
+        run: |
+          mkdir -p wikiSync
+          echo "Copying files from wiki to wikiSync directory..."
+          cp -r wiki/* wikiSync/
+          echo "Contents of wikiSync:"
+          ls -la wikiSync/
+
+      - name: Delete wiki directory
+        run: |
+          echo "Removing the wiki directory."
+          rm -rf wiki
+
+      - name: Commit and push changes to main repository
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add wikiSync
+          if [ -n "$(git status --porcelain)" ]; then
+            git commit -m "Update wiki content"
+            echo "Changes committed. Pushing to branch $BRANCH."
+            git push -f $CODE_REPOSITORY_URL HEAD:$BRANCH  # Push to the main repository's main branch
+          else
+            echo "No changes to commit."
+            echo "Creating an empty commit to trigger actions."
+            git commit --allow-empty -m "Triggering action with empty commit"
+          fi
