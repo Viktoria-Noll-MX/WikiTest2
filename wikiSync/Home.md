@@ -8,3 +8,7 @@ graph TD;
     D --> B;
     C --> E[Finish];
 ```
+
+- [ ] No
+- [ ] No
+- [x] Yes
